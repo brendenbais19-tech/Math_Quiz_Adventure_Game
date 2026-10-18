@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quest - Interactive Addition Adventure</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        @keyframes floatSymbol {
+            0% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+            50% { transform: translateY(-15px) rotate(10deg); opacity: 0.7; }
+            100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+        }
+
+        @keyframes pulseSlow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .animate-pulse-slow {
+            animation: pulseSlow 3s infinite ease-in-out;
+        }
+
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 70%, #020617 100%);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        /* Custom Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-purple-500 selection:text-white">
+
+    <!-- Interactive Canvas Particles + Floating Math Symbols -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Header Navigation -->
+    <header class="w-full glass-panel sticky top-0 z-40 px-4 py-3 flex justify-between items-center shadow-xl">
+        <div class="flex items-center space-x-3 cursor-pointer group" onclick="playButtonSFX(); showScreen('dashboard')">
+            <span class="text-3xl transform group-hover:scale-110 transition duration-200">🧮</span>
+            <div class="flex flex-col">
+                <span class="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-pink-400 to-purple-400">
+                    MATH QUEST
+                </span>
+                <span class="text-[10px] text-slate-400 tracking-widest font-semibold uppercase">Addition Edition</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <!-- Audio Toggle Button -->
+            <button id="soundToggleBtn" onclick="toggleAudio()" class="glass-panel px-3 py-1.5 rounded-full text-xs sm:text-sm hover:bg-white/20 transition flex items-center space-x-2 border border-white/20 shadow-md">
+                <span id="soundIcon">🔇</span>
+                <span id="soundText" class="hidden sm:inline font-bold text-slate-200">Audio: OFF</span>
+            </button>
+            
+            <!-- Player Profile Widget -->
+            <div id="headerProfile" class="flex items-center space-x-2 glass-panel px-3 py-1.5 rounded-full cursor-pointer hover:bg-white/20 transition border border-white/20 shadow-md" onclick="playButtonSFX(); showScreen('profileModal')">
+                <span id="headerAvatar" class="text-xl">🦸</span>
+                <span id="headerName" class="font-bold text-xs sm:text-sm max-w-[90px] sm:max-w-[130px] truncate">Player</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow flex items-center justify-center p-3 sm:p-6 w-full max-w-6xl mx-auto my-auto">
+
+        <!-- 1. DASHBOARD SCREEN -->
+        <section id="dashboardScreen" class="w-full max-w-4xl space-y-6">
+            <div class="glass-card rounded-3xl p-6 sm:p-10 text-center relative overflow-hidden shadow-2xl border border-white/20">
+                <div class="relative z-10 space-y-5">
+                    <div id="dashAvatar" class="text-6xl sm:text-7xl mb-1 animate-pulse-slow inline-block drop-shadow-lg cursor-pointer" onclick="playButtonSFX(); showScreen('profileModal')">🦸</div>
+                    
+                    <div>
+                        <h1 class="text-2xl sm:text-4xl font-black tracking-wide">Welcome back, <span id="dashPlayerName" class="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-amber-400">Player</span>!</h1>
+                        <p class="text-slate-300 text-xs sm:text-base max-w-lg mx-auto mt-1 font-medium">
+                            Answer 100 math addition questions per level across 100 levels to become the Ultimate Math Master!
+                        </p>
+                    </div>
+                    
+                    <!-- Player Stats Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-3xl mx-auto pt-2">
+                        <div class="glass-panel rounded-2xl p-3.5 text-center border border-emerald-500/30">
+                            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-bold">Unlocked Level</div>
+                            <div class="text-lg sm:text-2xl font-black text-emerald-400 mt-0.5" id="dashLevelMax">1 / 100</div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-3.5 text-center border border-amber-500/30">
+                            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total Stars</div>
+                            <div class="text-lg sm:text-2xl font-black text-yellow-400 mt-0.5" id="dashTotalStars">⭐ 0</div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-3.5 text-center border border-purple-500/30">
+                            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-bold">Global Score</div>
+                            <div class="text-lg sm:text-2xl font-black text-purple-400 mt-0.5" id="dashTotalScore">0</div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-3.5 text-center border border-cyan-500/30">
+                            <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-bold">Completion</div>
+                            <div class="text-lg sm:text-2xl font-black text-cyan-400 mt-0.5" id="dashCompletion">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="pt-4 flex flex-wrap justify-center gap-4">
+                        <button onclick="playButtonSFX(); showScreen('levelSelect')" class="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-black py-4 px-9 rounded-2xl shadow-xl transform hover:scale-105 active:scale-95 transition duration-200 flex items-center space-x-2 border border-emerald-400/40 text-sm sm:text-base tracking-wide">
+                            <span>🗺️ START ADVENTURE</span>
+                        </button>
+                        <button onclick="playButtonSFX(); showScreen('profileModal')" class="glass-panel hover:bg-white/20 text-white font-bold py-4 px-7 rounded-2xl transition border border-white/20 text-sm sm:text-base flex items-center space-x-2">
+                            <span>⚙️ EDIT PROFILE</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. EDIT PROFILE SCREEN -->
+        <section id="profileModalScreen" class="hidden w-full max-w-md">
+            <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 border border-white/20">
+                <h2 class="text-2xl font-black text-center flex items-center justify-center space-x-2 text-yellow-400">
+                    <span>👤</span> <span>Customize Profile</span>
+                </h2>
+
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-300 mb-2">Player Name:</label>
+                        <input type="text" id="playerNameInput" maxlength="15" placeholder="Enter player name..." class="w-full bg-slate-900/90 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm font-bold">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-300 mb-2">Select Emoji Avatar:</label>
+                        <div class="grid grid-cols-5 gap-2.5" id="avatarGrid">
+                            <!-- Populated via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 pt-2">
+                    <button onclick="playButtonSFX(); saveProfile()" class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 font-extrabold py-3.5 rounded-2xl transition shadow-lg text-sm">
+                        Save Changes
+                    </button>
+                    <button onclick="playButtonSFX(); showScreen('dashboard')" class="glass-panel hover:bg-white/20 px-5 py-3.5 rounded-2xl font-bold transition text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. LEVEL SELECTION GRID SCREEN -->
+        <section id="levelSelectScreen" class="hidden w-full max-w-5xl space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center glass-card p-4 sm:p-5 rounded-2xl gap-3">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-black text-yellow-300">Level Map (1 - 100)</h2>
+                    <p class="text-xs text-slate-300 font-medium">Complete 100 non-repeating addition questions to unlock the next level.</p>
+                </div>
+                <button onclick="playButtonSFX(); showScreen('dashboard')" class="glass-panel hover:bg-white/20 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center space-x-1 self-end sm:self-auto">
+                    <span>⬅️ Back to Dashboard</span>
+                </button>
+            </div>
+
+            <!-- Difficulty Breakdown Legend Badges -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div class="glass-panel p-2.5 rounded-xl text-center border-l-4 border-emerald-400 bg-emerald-950/30">
+                    <div class="font-extrabold text-emerald-400">EASY (Levels 1-10)</div>
+                    <div class="text-[10px] text-slate-300 mt-0.5">Addition range 1 to 50</div>
+                </div>
+                <div class="glass-panel p-2.5 rounded-xl text-center border-l-4 border-blue-400 bg-blue-950/30">
+                    <div class="font-extrabold text-blue-400">MEDIUM (Levels 11-30)</div>
+                    <div class="text-[10px] text-slate-300 mt-0.5">Addition range 51 to 99</div>
+                </div>
+                <div class="glass-panel p-2.5 rounded-xl text-center border-l-4 border-amber-400 bg-amber-950/30">
+                    <div class="font-extrabold text-amber-400">HARD (Levels 31-60)</div>
+                    <div class="text-[10px] text-slate-300 mt-0.5">Hundreds range (100 - 999)</div>
+                </div>
+                <div class="glass-panel p-2.5 rounded-xl text-center border-l-4 border-rose-400 bg-rose-950/30">
+                    <div class="font-extrabold text-rose-400">SUPER HARD (Levels 61-100)</div>
+                    <div class="text-[10px] text-slate-300 mt-0.5">Thousands range (1000 - 9999)</div>
+                </div>
+            </div>
+
+            <!-- 100 Level Cards Container -->
+            <div id="levelGrid" class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-10 gap-2.5 max-h-[58vh] overflow-y-auto p-3.5 rounded-2xl glass-card">
+                <!-- Dynamically Rendered via JS -->
+            </div>
+        </section>
+
+        <!-- 4. GAMEPLAY QUIZ SCREEN -->
+        <section id="gameplayScreen" class="hidden w-full max-w-2xl space-y-4">
+            <!-- HUD Status Bar -->
+            <div class="glass-card rounded-2xl p-3.5 sm:p-4 flex justify-between items-center text-xs sm:text-sm">
+                <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Level</span>
+                    <span id="gameLevelDisplay" class="font-black text-yellow-400 text-base sm:text-lg">1</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Difficulty</span>
+                    <span id="gameDifficultyDisplay" class="font-extrabold text-emerald-400 text-xs sm:text-sm">EASY</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Streak</span>
+                    <span id="gameStreakDisplay" class="font-black text-amber-400 text-base sm:text-lg">🔥 0</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Question</span>
+                    <span id="gameQuestionNumDisplay" class="font-black text-cyan-400 text-base sm:text-lg">1 / 100</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Score</span>
+                    <span id="gameCurrentScoreDisplay" class="font-black text-purple-400 text-base sm:text-lg">0</span>
+                </div>
+            </div>
+
+            <!-- Quiz Progress Bar -->
+            <div class="w-full bg-slate-900/90 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/80 shadow-inner">
+                <div id="progressBar" class="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 h-full rounded-full transition-all duration-300" style="width: 1%;"></div>
+            </div>
+
+            <!-- Active Question Card -->
+            <div class="glass-card rounded-3xl p-6 sm:p-10 text-center space-y-6 shadow-2xl border-2 border-indigo-500/30 relative">
+                <div class="text-xs font-black tracking-widest text-indigo-300 uppercase">Solve the Math Addition</div>
+                
+                <div id="questionText" class="text-4xl sm:text-6xl font-black tracking-wider text-white drop-shadow-md py-2">
+                    1 + 1 = ?
+                </div>
+
+                <!-- Answer Choices Grid -->
+                <div id="optionsGrid" class="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
+                    <!-- Dynamic option buttons -->
+                </div>
+
+                <!-- Feedback Display -->
+                <div id="feedbackText" class="h-6 font-bold text-sm sm:text-base transition-all duration-200"></div>
+            </div>
+
+            <!-- Bottom Gameplay Controls -->
+            <div class="flex justify-between items-center px-2">
+                <button onclick="quitGame()" class="glass-panel hover:bg-red-500/20 text-red-300 border border-red-500/30 px-4 py-2 rounded-xl text-xs font-bold transition">
+                    🏳️ Exit Level
+                </button>
+                <div class="text-[11px] text-slate-400 font-semibold">Real-Time Autosave Active 💾</div>
+            </div>
+        </section>
+
+        <!-- 5. END-OF-LEVEL SCOREBOARD SCREEN -->
+        <section id="scoreboardScreen" class="hidden w-full max-w-lg">
+            <div class="glass-card rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl border border-yellow-500/40">
+                <div class="text-6xl animate-bounce" id="scoreboardIcon">🏆</div>
+                
+                <h2 class="text-2xl sm:text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-500">
+                    Level Victory!
+                </h2>
+
+                <p id="scoreboardSubtitle" class="text-slate-300 text-xs sm:text-sm font-medium">Outstanding job completing all 100 questions in this level!</p>
+
+                <div id="scoreboardStars" class="text-3xl sm:text-4xl space-x-1">
+                    ⭐⭐⭐
+                </div>
+
+                <div class="glass-panel rounded-2xl p-4 space-y-3 text-left text-xs sm:text-sm border border-white/10">
+                    <div class="flex justify-between border-b border-slate-700/80 pb-2">
+                        <span class="text-slate-400">Player:</span>
+                        <span id="scorePlayerName" class="font-bold text-white">Player</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-700/80 pb-2">
+                        <span class="text-slate-400">Level Completed:</span>
+                        <span id="scoreLevelNum" class="font-bold text-yellow-400">Level 1</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-700/80 pb-2">
+                        <span class="text-slate-400">Correct Answers:</span>
+                        <span id="scoreCorrectCount" class="font-bold text-emerald-400">100 / 100</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-700/80 pb-2">
+                        <span class="text-slate-400">Accuracy Rate:</span>
+                        <span id="scoreAccuracy" class="font-bold text-cyan-400">100%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Points Gained:</span>
+                        <span id="scorePoints" class="font-bold text-purple-400">1000 Pts</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button id="nextLevelBtn" onclick="playButtonSFX(); nextLevel()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 font-black py-3.5 rounded-2xl transition shadow-lg text-sm tracking-wide">
+                        Next Level ➡️
+                    </button>
+                    <button onclick="playButtonSFX(); showScreen('levelSelect')" class="glass-panel hover:bg-white/20 px-5 py-3.5 rounded-2xl font-bold transition text-sm">
+                        🗺️ Level Map
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. POLICY & TERMS OF USE MODAL -->
+        <div id="policyModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[85vh] flex flex-col space-y-4 shadow-2xl border border-white/20">
+                <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                    <h3 class="text-xl font-black text-yellow-400 flex items-center space-x-2">
+                        <span>📜</span> <span>Privacy Policy & Terms of Use</span>
+                    </h3>
+                    <button onclick="playButtonSFX(); closePolicyModal()" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+                </div>
+
+                <div class="overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-300 pr-2 leading-relaxed font-normal">
+                    <div class="bg-red-500/20 border border-red-500/40 p-3.5 rounded-2xl text-red-200 font-bold">
+                        🔒 NOTICE: THIS APPLICATION IS STRICTLY FOR PERSONAL AND EDUCATIONAL USE ONLY.
+                    </div>
+
+                    <section class="space-y-1.5">
+                        <h4 class="font-extrabold text-white text-base">1. Personal Use License</h4>
+                        <p>This web application ("Math Quest") is provided solely for personal, non-commercial, and educational entertainment purposes. You are granted a personal, non-exclusive, non-transferable license to play and use this software on your personal devices.</p>
+                    </section>
+
+                    <section class="space-y-1.5">
+                        <h4 class="font-extrabold text-white text-base">2. Restrictions on Use</h4>
+                        <p>You may not sell, rent, lease, sub-license, redistribute, modify, reverse-engineer, or commercially exploit any part of this game, including its source code, audio synthesizers, UI components, or branding without prior written permission from YuhTwin.</p>
+                    </section>
+
+                    <section class="space-y-1.5">
+                        <h4 class="font-extrabold text-white text-base">3. Privacy & Data Handling</h4>
+                        <p>Your privacy is fully protected. Math Quest operates entirely client-side. No personal data, tracking cookies, or gameplay metrics are transmitted to any external servers. All gameplay data (player profile, scores, and unlocked levels) is stored locally on user devices via browser <code class="bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300 font-mono">localStorage</code>.</p>
+                    </section>
+
+                    <section class="space-y-1.5">
+                        <h4 class="font-extrabold text-white text-base">4. Intellectual Property & Copyright</h4>
+                        <p>All source code, procedural audio synthesizers, user interface design elements, and software assets are copyright © 2026 YuhTwin. Avatar graphics utilize public standard Unicode emojis natively rendered by your system font.</p>
+                    </section>
+
+                    <section class="space-y-1.5">
+                        <h4 class="font-extrabold text-white text-base">5. Disclaimer & No Warranty</h4>
+                        <p>This software is provided "AS IS" without warranties of any kind. YuhTwin shall not be held liable for any data reset or loss resulting from clearing browser data or cache.</p>
+                    </section>
+                </div>
+
+                <div class="border-t border-white/10 pt-3 text-right">
+                    <button onclick="playButtonSFX(); closePolicyModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-6 rounded-xl transition text-xs sm:text-sm">
+                        I Understand & Accept
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer with Copyright & Policy Modal Link -->
+    <footer class="w-full text-center py-3 text-slate-400 text-xs font-semibold border-t border-white/10 glass-panel mt-auto z-30 flex flex-col sm:flex-row justify-center items-center gap-2 px-4">
+        <span>© 2026 YuhTwin. All Rights Reserved.</span>
+        <span class="hidden sm:inline text-slate-600">•</span>
+        <button onclick="playButtonSFX(); openPolicyModal()" class="text-yellow-400 hover:text-yellow-300 underline transition font-bold">
+            Privacy Policy & Terms of Use (Personal Use Only)
+        </button>
+    </footer>
+
+    <!-- JavaScript Application Core -->
+    <script>
+        /* ==========================================================================
+           1. DATA STRUCTURE & REAL-TIME SAVE ENGINE (localStorage)
+           ========================================================================== */
+        const AVATARS = ["🦸", "🧙", "🐯", "🤖", "🚀", "🦊", "🐉", "🦄", "👽", "👑"];
+        const SAVE_KEY = "yuhTwinMathQuizProgress";
+
+        let playerData = {
+            name: "Player",
+            avatar: "🦸",
+            unlockedLevel: 1,
+            totalScore: 0,
+            levelScores: {}, // Format: { levelNum: highestScore }
+            levelStars: {}   // Format: { levelNum: starCount }
+        };
+
+        function loadPlayerData() {
+            const saved = localStorage.getItem(SAVE_KEY);
+            if (saved) {
+                try {
+                    playerData = JSON.parse(saved);
+                } catch(e) {
+                    console.error("Error parsing save data:", e);
+                }
+            }
+            updateDashboardUI();
+        }
+
+        function savePlayerData() {
+            localStorage.setItem(SAVE_KEY, JSON.stringify(playerData));
+            updateDashboardUI();
+        }
+
+        /* ==========================================================================
+           2. COPYRIGHT-FREE WEB AUDIO SYNTHESIZER (8-BIT UPBEAT BGM & SFX)
+           ========================================================================== */
+        let audioCtx = null;
+        let isAudioOn = false;
+        let bgmTimer = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function toggleAudio() {
+            initAudio();
+            isAudioOn = !isAudioOn;
+
+            const soundIcon = document.getElementById("soundIcon");
+            const soundText = document.getElementById("soundText");
+
+            if (isAudioOn) {
+                soundIcon.innerText = "🔊";
+                soundText.innerText = "Audio: ON";
+                startUpbeatBGM();
+                playSFX('button');
+            } else {
+                soundIcon.innerText = "🔇";
+                soundText.innerText = "Audio: OFF";
+                stopUpbeatBGM();
+            }
+        }
+
+        function startUpbeatBGM() {
+            if (bgmTimer) clearInterval(bgmTimer);
+
+            // Bouncy, happy C-Major 8-bit arcade melody
+            const notes = [
+                { f: 523.25, d: 0.1 },  // C5
+                { f: 659.25, d: 0.1 },  // E5
+                { f: 783.99, d: 0.1 },  // G5
+                { f: 1046.50, d: 0.15 },// C6
+                { f: 783.99, d: 0.1 },  // G5
+                { f: 880.00, d: 0.1 },  // A5
+                { f: 987.77, d: 0.1 },  // B5
+                { f: 1046.50, d: 0.2 }  // C6
+            ];
+            let idx = 0;
+
+            bgmTimer = setInterval(() => {
+                if (!isAudioOn || !audioCtx) return;
+                const note = notes[idx % notes.length];
+                playSynthTone(note.f, note.d, "square", 0.03);
+
+                // Rhythm bass synth pulse
+                if (idx % 2 === 0) {
+                    playSynthTone(130.81, 0.08, "triangle", 0.04); // C3
+                }
+                idx++;
+            }, 210);
+        }
+
+        function stopUpbeatBGM() {
+            if (bgmTimer) clearInterval(bgmTimer);
+        }
+
+        function playSynthTone(freq, duration, type = "sine", vol = 0.1) {
+            if (!isAudioOn || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playSFX(type) {
+            if (!isAudioOn || !audioCtx) return;
+            if (type === 'button') {
+                playSynthTone(440, 0.05, "sine", 0.08);
+            } else if (type === 'correct') {
+                playSynthTone(523.25, 0.08, "square", 0.12);
+                setTimeout(() => playSynthTone(659.25, 0.08, "square", 0.12), 60);
+                setTimeout(() => playSynthTone(783.99, 0.12, "square", 0.12), 120);
+            } else if (type === 'wrong') {
+                playSynthTone(220, 0.1, "sawtooth", 0.15);
+                setTimeout(() => playSynthTone(164.81, 0.15, "sawtooth", 0.15), 70);
+            } else if (type === 'victory') {
+                playSynthTone(523.25, 0.1, "triangle", 0.18);
+                setTimeout(() => playSynthTone(659.25, 0.1, "triangle", 0.18), 90);
+                setTimeout(() => playSynthTone(783.99, 0.1, "triangle", 0.18), 180);
+                setTimeout(() => playSynthTone(1046.50, 0.3, "triangle", 0.22), 270);
+            }
+        }
+
+        function playButtonSFX() {
+            playSFX('button');
+        }
+
+        /* ==========================================================================
+           3. FLOATING MATH PARTICLE CANVAS BACKGROUND
+           ========================================================================== */
+        const canvas = document.getElementById("bgCanvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+        const mathSymbols = ["+", "=", "★", "💎", "⚡", "1", "2", "3"];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 14 + 10;
+                this.symbol = mathSymbols[Math.floor(Math.random() * mathSymbols.length)];
+                this.speedY = -(Math.random() * 0.4 + 0.1);
+                this.speedX = (Math.random() - 0.5) * 0.3;
+                this.alpha = Math.random() * 0.35 + 0.1;
+            }
+            update() {
+                this.y += this.speedY;
+                this.x += this.speedX;
+                if (this.y < -20 || this.x < -20 || this.x > canvas.width + 20) {
+                    this.reset();
+                    this.y = canvas.height + 20;
+                }
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                ctx.font = `${this.size}px 'Plus Jakarta Sans', sans-serif`;
+                ctx.fillText(this.symbol, this.x, this.y);
+            }
+        }
+
+        for (let i = 0; i < 40; i++) {
+            particles.push(new Particle());
+        }
+
+        function animateBg() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateBg);
+        }
+        animateBg();
+
+        /* ==========================================================================
+           4. SCREEN NAVIGATION & POLICY MODAL
+           ========================================================================== */
+        function openPolicyModal() {
+            document.getElementById("policyModal").classList.remove("hidden");
+        }
+
+        function closePolicyModal() {
+            document.getElementById("policyModal").classList.add("hidden");
+        }
+
+        function showScreen(screenName) {
+            document.getElementById("dashboardScreen").classList.add("hidden");
+            document.getElementById("profileModalScreen").classList.add("hidden");
+            document.getElementById("levelSelectScreen").classList.add("hidden");
+            document.getElementById("gameplayScreen").classList.add("hidden");
+            document.getElementById("scoreboardScreen").classList.add("hidden");
+
+            if (screenName === 'dashboard') {
+                updateDashboardUI();
+                document.getElementById("dashboardScreen").classList.remove("hidden");
+            } else if (screenName === 'profileModal') {
+                renderAvatarGrid();
+                document.getElementById("playerNameInput").value = playerData.name;
+                document.getElementById("profileModalScreen").classList.remove("hidden");
+            } else if (screenName === 'levelSelect') {
+                renderLevelGrid();
+                document.getElementById("levelSelectScreen").classList.remove("hidden");
+            } else if (screenName === 'gameplay') {
+                document.getElementById("gameplayScreen").classList.remove("hidden");
+            } else if (screenName === 'scoreboard') {
+                document.getElementById("scoreboardScreen").classList.remove("hidden");
+            }
+        }
+
+        function updateDashboardUI() {
+            document.getElementById("headerName").innerText = playerData.name;
+            document.getElementById("headerAvatar").innerText = playerData.avatar;
+            document.getElementById("dashPlayerName").innerText = playerData.name;
+            document.getElementById("dashAvatar").innerText = playerData.avatar;
+            document.getElementById("dashLevelMax").innerText = `${playerData.unlockedLevel} / 100`;
+            document.getElementById("dashTotalScore").innerText = playerData.totalScore;
+            
+            const totalStars = Object.values(playerData.levelStars || {}).reduce((a, b) => a + b, 0);
+            document.getElementById("dashTotalStars").innerText = `⭐ ${totalStars}`;
+
+            const completionPercent = Math.min(100, Math.round(((playerData.unlockedLevel - 1) / 100) * 100));
+            document.getElementById("dashCompletion").innerText = `${completionPercent}%`;
+        }
+
+        function renderAvatarGrid() {
+            const grid = document.getElementById("avatarGrid");
+            grid.innerHTML = "";
+            AVATARS.forEach(emoji => {
+                const btn = document.createElement("button");
+                btn.className = `text-2xl p-2.5 rounded-2xl transition transform active:scale-95 ${
+                    playerData.avatar === emoji 
+                        ? 'bg-purple-600 border-2 border-white shadow-lg' 
+                        : 'glass-panel hover:bg-white/20'
+                }`;
+                btn.innerText = emoji;
+                btn.onclick = () => {
+                    playButtonSFX();
+                    playerData.avatar = emoji;
+                    renderAvatarGrid();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function saveProfile() {
+            const inputVal = document.getElementById("playerNameInput").value.trim();
+            if (inputVal) {
+                playerData.name = inputVal;
+            }
+            savePlayerData();
+            showScreen('dashboard');
+        }
+
+        function renderLevelGrid() {
+            const grid = document.getElementById("levelGrid");
+            grid.innerHTML = "";
+
+            for (let i = 1; i <= 100; i++) {
+                const isUnlocked = i <= playerData.unlockedLevel;
+                const isCompleted = playerData.levelScores[i] !== undefined;
+                const stars = playerData.levelStars[i] || 0;
+
+                const btn = document.createElement("button");
+                btn.className = `h-14 rounded-2xl font-black flex flex-col items-center justify-center transition transform text-xs relative ${
+                    isUnlocked
+                        ? isCompleted
+                            ? 'bg-gradient-to-b from-emerald-500 to-emerald-700 text-white hover:scale-105 shadow-md border border-emerald-300/40'
+                            : 'bg-gradient-to-b from-amber-500 to-amber-700 text-white hover:scale-105 shadow-md border border-amber-300/40'
+                        : 'bg-slate-900/60 text-slate-600 cursor-not-allowed opacity-50 border border-slate-800'
+                }`;
+
+                let starDisplay = isUnlocked ? (isCompleted ? '⭐'.repeat(stars) : '🔓') : '🔒';
+
+                btn.innerHTML = `
+                    <span class="text-[11px]">Lvl ${i}</span>
+                    <span class="text-[9px] mt-0.5">${starDisplay}</span>
+                `;
+
+                if (isUnlocked) {
+                    btn.onclick = () => {
+                        playButtonSFX();
+                        startLevel(i);
+                    };
+                }
+
+                grid.appendChild(btn);
+            }
+        }
+
+        /* ==========================================================================
+           5. SMART NON-REPEATING QUESTION GENERATOR & GAMEPLAY ENGINE
+           ========================================================================== */
+        let currentLevel = 1;
+        let currentQuestionIndex = 0; // 0 to 99
+        const TOTAL_QUESTIONS_PER_LEVEL = 100;
+        let currentLevelCorrectCount = 0;
+        let currentStreak = 0;
+        let currentCorrectAnswer = 0;
+
+        let generatedQuestionKeys = new Set();
+
+        function getDifficultyInfo(level) {
+            if (level <= 10) return { label: "EASY", color: "text-emerald-400" };
+            if (level <= 30) return { label: "MEDIUM", color: "text-blue-400" };
+            if (level <= 60) return { label: "HARD", color: "text-amber-400" };
+            return { label: "SUPER HARD", color: "text-rose-400" };
+        }
+
+        function generateUniqueQuestion(level) {
+            let num1 = 0;
+            let num2 = 0;
+            let attempts = 0;
+            let key = "";
+            let invKey = "";
+
+            do {
+                attempts++;
+
+                if (level >= 1 && level <= 10) {
+                    // EASY (Levels 1-10): Numbers 1 to 50
+                    num1 = Math.floor(Math.random() * 50) + 1;
+                    num2 = Math.floor(Math.random() * 50) + 1;
+                } 
+                else if (level >= 11 && level <= 30) {
+                    // MEDIUM (Levels 11-30): Numbers 51 to 99
+                    num1 = Math.floor(Math.random() * 49) + 51;
+                    num2 = Math.floor(Math.random() * 49) + 51;
+                } 
+                else if (level >= 31 && level <= 60) {
+                    // HARD (Levels 31-60): Hundreds range (100 to 999)
+                    num1 = Math.floor(Math.random() * 900) + 100;
+                    num2 = Math.floor(Math.random() * 900) + 100;
+                } 
+                else if (level >= 61 && level <= 100) {
+                    // SUPER HARD (Levels 61-100): Thousands range (1000 to 9999)
+                    num1 = Math.floor(Math.random() * 9000) + 1000;
+                    num2 = Math.floor(Math.random() * 9000) + 1000;
+                }
+
+                key = `${num1}+${num2}`;
+                invKey = `${num2}+${num1}`;
+
+                if (attempts > 200) break;
+
+            } while (generatedQuestionKeys.has(key) || generatedQuestionKeys.has(invKey));
+
+            generatedQuestionKeys.add(key);
+            generatedQuestionKeys.add(invKey);
+
+            const answer = num1 + num2;
+
+            // Generate 3 plausible distractor answers
+            let choices = [answer];
+            let attemptsChoices = 0;
+
+            while (choices.length < 4) {
+                attemptsChoices++;
+                let step = level > 30 ? (level > 60 ? 100 : 10) : 1;
+                let offset = (Math.floor(Math.random() * 4) + 1) * (Math.random() < 0.5 ? 1 : -1) * step;
+                let wrongChoice = answer + offset;
+
+                if (wrongChoice > 0 && !choices.includes(wrongChoice)) {
+                    choices.push(wrongChoice);
+                }
+
+                if (attemptsChoices > 50) {
+                    choices.push(answer + choices.length * step);
+                }
+            }
+
+            choices.sort(() => Math.random() - 0.5);
+
+            return {
+                text: `${num1} + ${num2} = ?`,
+                answer: answer,
+                choices: choices
+            };
+        }
+
+        function startLevel(levelNum) {
+            currentLevel = levelNum;
+            currentQuestionIndex = 0;
+            currentLevelCorrectCount = 0;
+            currentStreak = 0;
+            generatedQuestionKeys.clear();
+
+            showScreen('gameplay');
+            loadNextQuestion();
+        }
+
+        function loadNextQuestion() {
+            if (currentQuestionIndex >= TOTAL_QUESTIONS_PER_LEVEL) {
+                finishLevel();
+                return;
+            }
+
+            const diff = getDifficultyInfo(currentLevel);
+
+            document.getElementById("gameLevelDisplay").innerText = currentLevel;
+            
+            const diffElem = document.getElementById("gameDifficultyDisplay");
+            diffElem.innerText = diff.label;
+            diffElem.className = `font-extrabold text-xs sm:text-sm ${diff.color}`;
+
+            document.getElementById("gameQuestionNumDisplay").innerText = `${currentQuestionIndex + 1} / ${TOTAL_QUESTIONS_PER_LEVEL}`;
+            document.getElementById("gameCurrentScoreDisplay").innerText = currentLevelCorrectCount * 10;
+            document.getElementById("gameStreakDisplay").innerText = `🔥 ${currentStreak}`;
+
+            const progressPercent = ((currentQuestionIndex + 1) / TOTAL_QUESTIONS_PER_LEVEL) * 100;
+            document.getElementById("progressBar").style.width = `${progressPercent}%`;
+
+            document.getElementById("feedbackText").innerText = "";
+
+            const q = generateUniqueQuestion(currentLevel);
+            currentCorrectAnswer = q.answer;
+
+            document.getElementById("questionText").innerText = q.text;
+
+            const optionsGrid = document.getElementById("optionsGrid");
+            optionsGrid.innerHTML = "";
+
+            q.choices.forEach(choice => {
+                const btn = document.createElement("button");
+                btn.className = "glass-panel hover:bg-indigo-600/40 text-lg sm:text-2xl font-black py-4 rounded-2xl transition transform active:scale-95 border border-indigo-400/30 shadow-md";
+                btn.innerText = choice;
+                btn.onclick = () => checkAnswer(choice, btn);
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, buttonElem) {
+            const feedbackElem = document.getElementById("feedbackText");
+            const allButtons = document.querySelectorAll("#optionsGrid button");
+
+            allButtons.forEach(b => b.disabled = true);
+
+            if (selected === currentCorrectAnswer) {
+                buttonElem.classList.add("bg-emerald-600/80", "border-emerald-400");
+                feedbackElem.innerText = "✨ Correct!";
+                feedbackElem.className = "h-6 font-bold text-sm sm:text-base text-emerald-400";
+                currentLevelCorrectCount++;
+                currentStreak++;
+                playSFX('correct');
+            } else {
+                buttonElem.classList.add("bg-rose-600/80", "border-rose-400");
+                feedbackElem.innerText = `❌ Incorrect! Correct Answer: ${currentCorrectAnswer}`;
+                feedbackElem.className = "h-6 font-bold text-sm sm:text-base text-rose-400";
+                currentStreak = 0;
+                playSFX('wrong');
+            }
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadNextQuestion();
+            }, 550);
+        }
+
+        function finishLevel() {
+            playSFX('victory');
+
+            const scoreGained = currentLevelCorrectCount * 10;
+            const accuracyPercent = Math.round((currentLevelCorrectCount / TOTAL_QUESTIONS_PER_LEVEL) * 100);
+
+            let starsEarned = 1;
+            if (accuracyPercent >= 90) starsEarned = 3;
+            else if (accuracyPercent >= 70) starsEarned = 2;
+
+            if (playerData.levelScores[currentLevel] === undefined || scoreGained > playerData.levelScores[currentLevel]) {
+                playerData.levelScores[currentLevel] = scoreGained;
+            }
+            if (playerData.levelStars[currentLevel] === undefined || starsEarned > playerData.levelStars[currentLevel]) {
+                playerData.levelStars[currentLevel] = starsEarned;
+            }
+
+            playerData.totalScore = Object.values(playerData.levelScores).reduce((a, b) => a + b, 0);
+
+            if (currentLevel === playerData.unlockedLevel && playerData.unlockedLevel < 100) {
+                playerData.unlockedLevel++;
+            }
+
+            savePlayerData();
+
+            document.getElementById("scorePlayerName").innerText = playerData.name;
+            document.getElementById("scoreLevelNum").innerText = `Level ${currentLevel}`;
+            document.getElementById("scoreCorrectCount").innerText = `${currentLevelCorrectCount} / ${TOTAL_QUESTIONS_PER_LEVEL}`;
+            document.getElementById("scoreAccuracy").innerText = `${accuracyPercent}%`;
+            document.getElementById("scorePoints").innerText = `${scoreGained} Pts`;
+            document.getElementById("scoreboardStars").innerText = "⭐".repeat(starsEarned);
+
+            const nextBtn = document.getElementById("nextLevelBtn");
+            if (currentLevel >= 100) {
+                nextBtn.classList.add("hidden");
+            } else {
+                nextBtn.classList.remove("hidden");
+            }
+
+            showScreen('scoreboard');
+        }
+
+        function nextLevel() {
+            if (currentLevel < 100) {
+                startLevel(currentLevel + 1);
+            } else {
+                showScreen('levelSelect');
+            }
+        }
+
+        function quitGame() {
+            if (confirm("Are you sure you want to exit? Level progress will reset.")) {
+                playButtonSFX();
+                showScreen('levelSelect');
+            }
+        }
+
+        window.onload = () => {
+            loadPlayerData();
+            showScreen('dashboard');
+        };
+    </script>
+</body>
+</html>
